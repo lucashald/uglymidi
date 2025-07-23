@@ -1,0 +1,20 @@
+# Core dependencies for ugly_midi
+pretty_midi>=0.2.8
+numpy>=1.19.0
+
+# Web framework for future features
+flask>=2.0.0
+gunicorn>=20.0.0
+
+# Optional: For better MIDI file handling
+mido>=1.2.0
+
+# Development and testing dependencies
+# (These could also go in a separate requirements-dev.txt file)
+pytest>=6.0.0
+pytest-cov>=2.10.0
+
+# For packaging and distribution
+setuptools>=45.0.0
+wheel>=0.36.0
+twine>=3.4.0

@@ -1,7 +1,114 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "python-template"
-version = "0.1.0"
-description = ""
-authors = ["Your Name <you@example.com>"]
-requires-python = ">=3.11"
-dependencies = []
+name = "ugly_midi"
+version = "1.0.0"
+description = "A bidirectional converter between VexFlow-style JSON music notation and MIDI files"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+maintainers = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+keywords = ["midi", "music", "vexflow", "json", "converter", "audio"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "Topic :: Multimedia :: Sound/Audio :: MIDI",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: OS Independent",
+]
+requires-python = ">=3.7"
+dependencies = [
+    "pretty_midi>=0.2.8",
+    "numpy>=1.19.0",
+]
+
+[project.optional-dependencies]
+web = [
+    "flask>=2.0.0",
+    "gunicorn>=20.0.0",
+]
+dev = [
+    "pytest>=6.0.0",
+    "pytest-cov>=2.10.0",
+    "mido>=1.2.0",
+]
+all = [
+    "flask>=2.0.0",
+    "gunicorn>=20.0.0",
+    "pytest>=6.0.0",
+    "pytest-cov>=2.10.0",
+    "mido>=1.2.0",
+]
+
+[project.scripts]
+ugly_midi = "ugly_midi.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/ugly_midi"
+Documentation = "https://github.com/yourusername/ugly_midi/blob/main/README.md"
+Repository = "https://github.com/yourusername/ugly_midi.git"
+"Issue Tracker" = "https://github.com/yourusername/ugly_midi/issues"
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ugly_midi*"]
+exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+ugly_midi = ["*.json", "*.md"]
+
+# pytest configuration
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--verbose",
+    "--cov=ugly_midi",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-report=xml",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+
+# Coverage configuration
+[tool.coverage.run]
+source = ["ugly_midi"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__main__.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]

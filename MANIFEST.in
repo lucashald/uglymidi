@@ -1,0 +1,24 @@
+# Include important package files
+include README.md
+include LICENSE
+include requirements.txt
+include pyproject.toml
+include setup.py
+include setup.cfg
+
+# Include documentation
+recursive-include docs *.md *.rst *.txt
+recursive-include ugly_midi *.json *.md
+
+# Include test files
+recursive-include tests *.py *.json *.mid
+
+# Exclude development and cache files
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *.pyd
+global-exclude __pycache__
+global-exclude .git*
+global-exclude .coverage
+global-exclude .pytest_cache
+global-exclude *.egg-info

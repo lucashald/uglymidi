@@ -1,0 +1,82 @@
+{
+  "keySignature": "C",
+  "tempo": 120,
+  "timeSignature": {
+    "numerator": 4,
+    "denominator": 4
+  },
+  "instrument": "piano",
+  "midiChannel": "0",
+  "measures": [
+    [
+      {
+        "id": "converted-0-1",
+        "name": "C4",
+        "clef": "treble",
+        "duration": "q",
+        "measure": 0,
+        "isRest": false
+      },
+      {
+        "id": "converted-0-2",
+        "name": "D4",
+        "clef": "treble",
+        "duration": "q",
+        "measure": 0,
+        "isRest": false
+      },
+      {
+        "id": "converted-0-3",
+        "name": "E4",
+        "clef": "treble",
+        "duration": "q",
+        "measure": 0,
+        "isRest": false
+      },
+      {
+        "id": "converted-0-4",
+        "name": "F4",
+        "clef": "treble",
+        "duration": "q",
+        "measure": 0,
+        "isRest": false
+      }
+    ],
+    [
+      {
+        "id": "converted-1-1",
+        "name": "(C4 E4 G4)",
+        "clef": "treble",
+        "duration": "h",
+        "measure": 1,
+        "isRest": false
+      }
+    ],
+    [
+      {
+        "id": "converted-2-1",
+        "name": "C4",
+        "clef": "treble",
+        "duration": "h",
+        "measure": 2,
+        "isRest": false
+      },
+      {
+        "id": "converted-2-2",
+        "name": "C3",
+        "clef": "bass",
+        "duration": "q",
+        "measure": 2,
+        "isRest": false
+      },
+      {
+        "id": "converted-2-3",
+        "name": "G3",
+        "clef": "bass",
+        "duration": "q",
+        "measure": 2,
+        "isRest": false
+      }
+    ]
+  ]
+}
