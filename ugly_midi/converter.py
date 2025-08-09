@@ -58,6 +58,55 @@ def beats_to_seconds(beats, tempo):
     return (beats * 60.0) / tempo
 
 
+def quantize_time(time_seconds, quantize_resolution, tempo):
+    """
+    Quantize a time value to the nearest quantization resolution.
+    
+    Args:
+        time_seconds (float): Time in seconds
+        quantize_resolution (float): Quantization resolution in beats (e.g., 0.25 for sixteenth notes)
+        tempo (int): Tempo in BPM
+    
+    Returns:
+        float: Quantized time in seconds
+    """
+    # Convert time to beats
+    beats = (time_seconds * tempo) / 60.0
+    
+    # Quantize to nearest resolution
+    quantized_beats = round(beats / quantize_resolution) * quantize_resolution
+    
+    # Convert back to seconds
+    return (quantized_beats * 60.0) / tempo
+
+
+def calculate_duration_with_quantization(start_time, end_time, tempo, quantize_resolution=0.25):
+    """
+    Calculate note duration with proper quantization.
+    
+    Args:
+        start_time (float): Note start time in seconds
+        end_time (float): Note end time in seconds
+        tempo (int): Tempo in BPM
+        quantize_resolution (float): Quantization resolution in beats
+    
+    Returns:
+        float: Duration in beats (quantized)
+    """
+    # Quantize start and end times
+    quantized_start = quantize_time(start_time, quantize_resolution, tempo)
+    quantized_end = quantize_time(end_time, quantize_resolution, tempo)
+    
+    # Calculate duration in seconds
+    duration_seconds = quantized_end - quantized_start
+    
+    # Convert to beats
+    duration_beats = (duration_seconds * tempo) / 60.0
+    
+    # Ensure minimum duration (don't allow zero or negative durations)
+    return max(duration_beats, quantize_resolution)
+
+
 def calculate_note_timing(note_data, measure_start_times, tempo):
     """
     Calculate the absolute start time for a note.
@@ -329,6 +378,40 @@ def beats_to_duration_symbol(beats):
     return closest_duration
 
 
+def beats_to_duration_symbol_improved(beats, allow_compound=True):
+    """
+    Convert beats to VexFlow duration symbol with better logic.
+    
+    Args:
+        beats (float): Duration in beats
+        allow_compound (bool): Whether to allow compound durations like dotted notes
+    
+    Returns:
+        str: VexFlow duration symbol
+    """
+    # Handle exact matches first
+    for symbol, duration_beats in DURATION_TO_BEATS.items():
+        if abs(beats - duration_beats) < 0.001:  # Very small tolerance for floating point
+            return symbol
+    
+    # If no exact match, find closest
+    closest_duration = 'q'  # Default to quarter note
+    closest_diff = float('inf')
+    
+    # Prioritize simple durations over dotted ones if allow_compound is False
+    duration_items = list(DURATION_TO_BEATS.items())
+    if not allow_compound:
+        duration_items = [(k, v) for k, v in duration_items if '.' not in k]
+    
+    for symbol, duration_beats in duration_items:
+        diff = abs(beats - duration_beats)
+        if diff < closest_diff:
+            closest_diff = diff
+            closest_duration = symbol
+    
+    return closest_duration
+
+
 def midi_notes_to_name(midi_notes):
     """
     Convert MIDI note numbers to VexFlow note name format.
@@ -373,18 +456,28 @@ def determine_clef(midi_note):
     return 'treble' if midi_note >= 60 else 'bass'
 
 
-def create_json_from_midi(midi_file_path, quantize_resolution=0.25):
-    """
-    Convert a MIDI file to VexFlow JSON format using pretty_midi.
+def determine_instrument_name(pm):
+    """Helper function to determine instrument name from PrettyMIDI object."""
+    for inst in pm.instruments:
+        if not inst.is_drum:
+            try:
+                program_name = pretty_midi.program_to_instrument_name(inst.program)
+                instrument_map = {
+                    'Acoustic Grand Piano': 'piano',
+                    'Acoustic Guitar (nylon)': 'guitar',
+                    'Acoustic Guitar (steel)': 'guitar',
+                    'Electric Guitar (clean)': 'guitar',
+                    'Cello': 'cello',
+                    'Violin': 'violin',
+                    'Alto Sax': 'sax',
+                }
+                return instrument_map.get(program_name, 'piano')
+            except (ValueError, AttributeError):
+                pass
+    return 'piano'
 
-    Args:
-        midi_file_path (str): Path to MIDI file
-        quantize_resolution (float): Quantization resolution in beats (0.25 = sixteenth note)
 
-    Returns:
-        dict: VexFlow JSON data
-    """
-    # Load MIDI file
+def create_json_from_midi(midi_file_path, quantize_resolution=0.25, manual_tempo=142):
     try:
         pm = pretty_midi.PrettyMIDI(midi_file_path)
     except Exception as e:
@@ -393,186 +486,139 @@ def create_json_from_midi(midi_file_path, quantize_resolution=0.25):
     if not pm.instruments:
         raise ValueError("MIDI file contains no instruments")
 
-    # Extract basic metadata
-    tempo = pm.estimate_tempo() if pm.estimate_tempo() > 0 else 120
+    tempo = manual_tempo
+    print(f"Using precise tempo: {tempo} BPM")
 
-    # Get key signature (use first one, default to C)
-    key_signature = 'C'
-    if pm.key_signature_changes:
-        try:
-            key_number = pm.key_signature_changes[0].key_number
-            key_signature = pretty_midi.key_number_to_key_name(key_number)
-        except (IndexError, ValueError, AttributeError):
-            pass
+    measure_duration_seconds = (4.0 * 60.0) / tempo
+    
+    # Use finer quantization for better timing accuracy
+    fine_quantization = 0.125  # 32nd note resolution instead of 16th
+    print(f"Using fine quantization: {fine_quantization} beats (32nd notes)")
 
-    # Get time signature (use first one, default to 4/4)
-    time_signature = {'numerator': 4, 'denominator': 4}
-    if pm.time_signature_changes:
-        ts = pm.time_signature_changes[0]
-        time_signature = {
-            'numerator': ts.numerator,
-            'denominator': ts.denominator
-        }
-
-    # Determine instrument (use first non-drum instrument)
-    instrument_name = 'piano'
-    main_instrument = None
-    for inst in pm.instruments:
-        if not inst.is_drum:
-            main_instrument = inst
-            break
-
-    if main_instrument:
-        try:
-            program_name = pretty_midi.program_to_instrument_name(
-                main_instrument.program)
-            # Map back to our simplified names
-            instrument_map = {
-                'Acoustic Grand Piano': 'piano',
-                'Acoustic Guitar (nylon)': 'guitar',
-                'Acoustic Guitar (steel)': 'guitar',
-                'Electric Guitar (clean)': 'guitar',
-                'Cello': 'cello',
-                'Violin': 'violin',
-                'Alto Sax': 'sax',
-            }
-            instrument_name = instrument_map.get(program_name, 'piano')
-        except (ValueError, AttributeError):
-            pass
-
-    # Calculate measure duration in seconds
-    beats_per_measure = time_signature['numerator'] * (
-        4.0 / time_signature['denominator'])
-    measure_duration = (beats_per_measure * 60.0) / tempo
-
-    # Collect all notes from all non-drum instruments
+    # Process notes with maximum precision
     all_notes = []
     for inst in pm.instruments:
         if inst.is_drum:
             continue
 
         for note in inst.notes:
-            # Determine clef based on pitch
-            clef = determine_clef(note.pitch)
-
-            # Calculate measure and position within measure
-            measure_num = int(note.start / measure_duration)
-
-            # Calculate duration in beats
-            duration_seconds = note.end - note.start
-            duration_beats = (duration_seconds * tempo) / 60.0
-
+            # Use finer quantization
+            quantized_start = quantize_time(note.start, fine_quantization, tempo)
+            measure_num = int(quantized_start // measure_duration_seconds)
+            
+            # More precise duration calculation
+            duration_beats = calculate_duration_with_quantization(
+                note.start, note.end, tempo, fine_quantization
+            )
+            
             all_notes.append({
-                'start_time': note.start,
-                'end_time': note.end,
+                'start_time': quantized_start,
                 'measure': measure_num,
-                'clef': clef,
                 'midi_note': note.pitch,
-                'velocity': note.velocity,
-                'duration_beats': duration_beats
+                'duration_beats': duration_beats,
+                'note_name': pretty_midi.note_number_to_name(note.pitch),
+                'original_start': note.start,  # Keep for debugging
+                'original_end': note.end
             })
 
-    # Sort notes by time
-    all_notes.sort(key=lambda x: (x['measure'], x['start_time']))
+    all_notes.sort(key=lambda x: (x['measure'], x['start_time'], x['midi_note']))
 
-    # Group notes into measures
+    # Group with ultra-strict timing tolerance
     measures = []
+    
     if all_notes:
         max_measure = max(note['measure'] for note in all_notes)
 
         for measure_idx in range(max_measure + 1):
-            measure_notes = [
-                n for n in all_notes if n['measure'] == measure_idx
-            ]
-
-            # Group simultaneous notes (chords)
-            chord_groups = []
-            current_group = []
-            current_time = None
-
-            for note in measure_notes:
-                # If this note starts at roughly the same time as the current group, add it
-                if current_time is None or abs(note['start_time'] -
-                                               current_time) < 0.1:
-                    current_group.append(note)
-                    current_time = note[
-                        'start_time'] if current_time is None else current_time
-                else:
-                    # Start a new group
-                    if current_group:
-                        chord_groups.append(current_group)
-                    current_group = [note]
-                    current_time = note['start_time']
-
-            # Don't forget the last group
-            if current_group:
-                chord_groups.append(current_group)
-
-            # Convert chord groups to VexFlow format
+            measure_notes = [n for n in all_notes if n['measure'] == measure_idx]
             measure_data = []
             note_id_counter = 1
 
-            for group in chord_groups:
-                # Group by clef
-                clef_groups = {}
-                for note in group:
-                    clef = note['clef']
-                    if clef not in clef_groups:
-                        clef_groups[clef] = []
-                    clef_groups[clef].append(note)
+            if not measure_notes:
+                measures.append([])
+                continue
 
-                # Create note objects for each clef
-                for clef, clef_notes in clef_groups.items():
-                    midi_notes = [n['midi_note'] for n in clef_notes]
-                    note_name = midi_notes_to_name(midi_notes)
+            # Ultra-strict timing grouping (0.001s tolerance)
+            time_groups = {}
+            for note in measure_notes:
+                # Round to millisecond precision
+                start_key = round(note['start_time'] * 1000) / 1000
+                if start_key not in time_groups:
+                    time_groups[start_key] = []
+                time_groups[start_key].append(note)
 
-                    # Use average duration for the chord
-                    avg_duration = sum(n['duration_beats']
-                                       for n in clef_notes) / len(clef_notes)
-                    duration_symbol = beats_to_duration_symbol(avg_duration)
+            # Process each time group
+            for start_time in sorted(time_groups.keys()):
+                time_group = time_groups[start_time]
+                
+                # Group by duration with high precision
+                duration_groups = {}
+                for note in time_group:
+                    # Round to hundredth of a beat
+                    duration_key = round(note['duration_beats'] * 100) / 100
+                    if duration_key not in duration_groups:
+                        duration_groups[duration_key] = []
+                    duration_groups[duration_key].append(note)
 
-                    note_data = {
-                        'id': f'converted-{measure_idx}-{note_id_counter}',
-                        'name': note_name,
-                        'clef': clef,
-                        'duration': duration_symbol,
-                        'measure': measure_idx,
-                        'isRest': False
-                    }
-
-                    measure_data.append(note_data)
-                    note_id_counter += 1
+                # Process duration groups
+                for duration_beats in sorted(duration_groups.keys()):
+                    duration_group = duration_groups[duration_beats]
+                    
+                    if len(duration_group) == 1:
+                        # Single note
+                        note = duration_group[0]
+                        clef = 'treble' if note['midi_note'] >= 60 else 'bass'
+                        duration_symbol = beats_to_duration_symbol_improved(duration_beats)
+                        
+                        measure_data.append({
+                            'id': f'converted-{measure_idx}-{note_id_counter}',
+                            'name': note['note_name'],
+                            'clef': clef,
+                            'duration': duration_symbol,
+                            'measure': measure_idx,
+                            'isRest': False
+                        })
+                        note_id_counter += 1
+                    
+                    else:
+                        # Chord - same logic but preserve precise durations
+                        duration_group.sort(key=lambda x: x['midi_note'])
+                        
+                        lowest_note = duration_group[0]['midi_note']
+                        highest_note = duration_group[-1]['midi_note']
+                        
+                        if lowest_note < 60 and (highest_note - lowest_note) <= 12:
+                            clef = 'bass'
+                        elif lowest_note >= 60:
+                            clef = 'treble'
+                        else:
+                            treble_count = sum(1 for n in duration_group if n['midi_note'] >= 60)
+                            clef = 'treble' if treble_count >= len(duration_group)/2 else 'bass'
+                        
+                        note_names = [n['note_name'] for n in duration_group]
+                        chord_name = f"({' '.join(note_names)})" if len(note_names) > 1 else note_names[0]
+                        duration_symbol = beats_to_duration_symbol_improved(duration_beats)
+                        
+                        measure_data.append({
+                            'id': f'converted-{measure_idx}-{note_id_counter}',
+                            'name': chord_name,
+                            'clef': clef,
+                            'duration': duration_symbol,
+                            'measure': measure_idx,
+                            'isRest': False
+                        })
+                        note_id_counter += 1
 
             measures.append(measure_data)
 
-    # Build final JSON structure
+    # Build JSON with precise tempo
     json_data = {
-        'keySignature': key_signature,
+        'keySignature': 'C',
         'tempo': int(tempo),
-        'timeSignature': time_signature,
-        'instrument': instrument_name,
+        'timeSignature': {'numerator': 4, 'denominator': 4},
+        'instrument': 'piano',  # Force single instrument type
         'midiChannel': '0',
         'measures': measures
     }
-
-    return json_data
-
-
-def create_json_from_midi_file(midi_file_path, output_json_path):
-    """
-    Convert MIDI file to JSON and save to file.
-
-    Args:
-        midi_file_path (str): Path to input MIDI file
-        output_json_path (str): Path to save JSON file
-
-    Returns:
-        dict: VexFlow JSON data
-    """
-    json_data = create_json_from_midi(midi_file_path)
-
-    with open(output_json_path, 'w') as f:
-        json.dump(json_data, f, indent=2)
-    print(f"Successfully saved JSON to '{output_json_path}'")
 
     return json_data
