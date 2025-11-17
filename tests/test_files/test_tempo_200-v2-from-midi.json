@@ -1,0 +1,90 @@
+{
+  "keySignature": "C",
+  "tempo": 200,
+  "timeSignature": {
+    "numerator": 4,
+    "denominator": 4
+  },
+  "instrument": "piano",
+  "midiChannel": "0",
+  "measures": [
+    [
+      {
+        "id": "m0-treble-0",
+        "name": "C4",
+        "clef": "treble",
+        "duration": "q",
+        "measure": 0,
+        "isRest": false,
+        "velocity": 80
+      },
+      {
+        "id": "m0-treble-1000",
+        "name": "D4",
+        "clef": "treble",
+        "duration": "q",
+        "measure": 0,
+        "isRest": false,
+        "velocity": 80
+      },
+      {
+        "id": "m0-treble-2000",
+        "name": "E4",
+        "clef": "treble",
+        "duration": "q",
+        "measure": 0,
+        "isRest": false,
+        "velocity": 80
+      },
+      {
+        "id": "m0-treble-3000",
+        "name": "F4",
+        "clef": "treble",
+        "duration": "q",
+        "measure": 0,
+        "isRest": false,
+        "velocity": 80
+      }
+    ],
+    [
+      {
+        "id": "m1-treble-0",
+        "name": "(C4 E4 G4)",
+        "clef": "treble",
+        "duration": "h",
+        "measure": 1,
+        "isRest": false,
+        "velocity": 80
+      }
+    ],
+    [
+      {
+        "id": "m2-bass-0",
+        "name": "C3",
+        "clef": "bass",
+        "duration": "q",
+        "measure": 2,
+        "isRest": false,
+        "velocity": 80
+      },
+      {
+        "id": "m2-treble-0",
+        "name": "C4",
+        "clef": "treble",
+        "duration": "h",
+        "measure": 2,
+        "isRest": false,
+        "velocity": 80
+      },
+      {
+        "id": "m2-bass-1000",
+        "name": "G3",
+        "clef": "bass",
+        "duration": "q",
+        "measure": 2,
+        "isRest": false,
+        "velocity": 80
+      }
+    ]
+  ]
+}

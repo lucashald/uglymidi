@@ -168,7 +168,7 @@ def create_midi_from_json_v2(json_data: Dict, tempo_override: Optional[int] = No
 def _extract_notes_from_midi(pm: pretty_midi.PrettyMIDI, tempo: float) -> List[Dict]:
     """Flatten all non-drum notes from a PrettyMIDI into beat-based dicts.
 
-    Each returned dict has: pitch, start_beats, end_beats.
+    Each returned dict has: pitch, start_beats, end_beats, velocity.
     """
     notes: List[Dict] = []
     for inst in pm.instruments:
@@ -181,6 +181,7 @@ def _extract_notes_from_midi(pm: pretty_midi.PrettyMIDI, tempo: float) -> List[D
                 "pitch": n.pitch,
                 "start_beats": start_beats,
                 "end_beats": end_beats,
+                "velocity": n.velocity,  # Preserve velocity
             })
     return notes
 
@@ -242,6 +243,7 @@ def midi_to_json_v2(
             "duration_beats": dur_beats,
             "measure": measure_idx,
             "offset": offset,
+            "velocity": n.get("velocity", 100),
         })
 
     # Group per-measure, per-clef, per-(offset,duration) to form chords
@@ -255,15 +257,17 @@ def midi_to_json_v2(
 
     for measure_idx, note_list in measures.items():
         # group key: (clef, offset, duration_beats)
-        groups: Dict[Tuple[str, float, float], List[int]] = {}
+        groups: Dict[Tuple[str, float, float], Dict[str, object]] = {}
         for n in note_list:
             clef = determine_clef_from_pitch(n["pitch"])
             key = (clef, round(n["offset"], 6), round(n["duration_beats"], 6))
-            groups.setdefault(key, []).append(n["pitch"])
+            if key not in groups:
+                groups[key] = {"pitches": [], "velocity": n.get("velocity", 100)}
+            groups[key]["pitches"].append(n["pitch"])
 
         # Emit notes in stable order: by offset, clef
-        for (clef, offset, dur), pitches in sorted(groups.items(), key=lambda k: (k[0][1], k[0][0])):
-            name = midi_notes_to_name(pitches)
+        for (clef, offset, dur), data in sorted(groups.items(), key=lambda k: (k[0][1], k[0][0])):
+            name = midi_notes_to_name(data["pitches"])
             duration_symbol = beats_to_duration_symbol_simple(dur)
             result_measures[measure_idx].append({
                 "id": f"m{measure_idx}-{clef}-{int(offset * 1000)}",  # deterministic but arbitrary
@@ -272,6 +276,7 @@ def midi_to_json_v2(
                 "duration": duration_symbol,
                 "measure": measure_idx,
                 "isRest": False,
+                "velocity": int(data["velocity"]),
             })
 
     json_data: Dict = {
