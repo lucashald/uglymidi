@@ -128,8 +128,7 @@ def calculate_note_timing(note_data, measure_start_times, tempo):
 
 
 def process_measures(measures, tempo, time_signature):
-    """
-    Process all measures and calculate timing.
+    """Process all measures and calculate timing using beat-accurate math.
 
     Args:
         measures (list): List of measure arrays
@@ -137,56 +136,63 @@ def process_measures(measures, tempo, time_signature):
         time_signature (dict): Time signature with numerator/denominator
 
     Returns:
-        tuple: (notes_by_clef, measure_durations)
+        tuple: (notes_by_clef, measure_durations_seconds)
     """
     notes_by_clef = {'treble': [], 'bass': []}
-    measure_durations = []
+    measure_durations_seconds = []
 
-    # Calculate measure duration based on time signature
+    # Calculate measure duration in beats based on time signature
     beats_per_measure = time_signature['numerator']
     beat_unit = time_signature['denominator']
 
-    # Convert to quarter note beats (pretty_midi works in quarter note beats)
+    # Convert to quarter-note beats (PrettyMIDI uses quarter-note beats)
     measure_duration_beats = beats_per_measure * (4.0 / beat_unit)
 
-    for measure_idx, measure in enumerate(measures):
-        measure_duration_seconds = beats_to_seconds(measure_duration_beats,
-                                                    tempo)
-        measure_durations.append(measure_duration_seconds)
+    # Pre-compute measure durations in seconds for convenience
+    single_measure_duration_seconds = beats_to_seconds(measure_duration_beats,
+                                                       tempo)
 
-        # Group notes by clef and track their position within the measure
-        clef_positions = {'treble': 0.0, 'bass': 0.0}
+    for measure_idx, measure in enumerate(measures):
+        # All measures share the same duration in this simple model
+        measure_durations_seconds.append(single_measure_duration_seconds)
+
+        # Track position within the measure in beats, per clef
+        clef_positions_beats = {'treble': 0.0, 'bass': 0.0}
 
         # Sort notes by their ID timestamp to maintain order
         measure_notes = sorted(measure, key=lambda x: x.get('id', ''))
 
         for note_data in measure_notes:
+            duration_beats = DURATION_TO_BEATS.get(note_data.get('duration',
+                                                                 'q'), 1.0)
+
             if note_data.get('isRest', False):
-                # For rests, just advance the position
-                duration_beats = DURATION_TO_BEATS.get(note_data['duration'],
-                                                       1.0)
-                clef_positions[note_data['clef']] += duration_beats
+                # For rests, just advance the position in beats
+                clef_positions_beats[note_data['clef']] += duration_beats
                 continue
 
             clef = note_data['clef']
 
-            # Calculate absolute start time
-            measure_start = sum(measure_durations[:measure_idx])
-            beat_offset = clef_positions[clef]
-            start_time = measure_start + beats_to_seconds(beat_offset, tempo)
+            # Compute measure start in beats then convert once to seconds
+            measure_start_beats = measure_idx * measure_duration_beats
+            beat_offset = clef_positions_beats[clef]
+            absolute_beats = measure_start_beats + beat_offset
+            start_time = beats_to_seconds(absolute_beats, tempo)
 
-            # Calculate duration
-            duration_beats = DURATION_TO_BEATS.get(note_data['duration'], 1.0)
+            # Duration in seconds from beat duration
             duration_seconds = beats_to_seconds(duration_beats, tempo)
 
             # Parse note names to MIDI numbers
             try:
-                midi_notes = parse_note_name(note_data['name'])
+                midi_notes = parse_note_name(note_data.get('name', ''))
             except Exception as e:
                 print(
-                    f"Warning: Could not parse note '{note_data['name']}': {e}"
+                    f"Warning: Could not parse note '{note_data.get('name', '')}': {e}"
                 )
                 continue
+
+            # Sort pitches for stable chord representation
+            midi_notes = sorted(midi_notes)
 
             # Create note data
             for midi_note in midi_notes:
@@ -195,14 +201,16 @@ def process_measures(measures, tempo, time_signature):
                     'end_time': start_time + duration_seconds,
                     'midi_note': midi_note,
                     'velocity': 80,  # Default velocity
-                    'original_data': note_data
+                    'beat_offset': beat_offset,
+                    'duration_beats': duration_beats,
+                    'original_data': note_data,
                 }
                 notes_by_clef[clef].append(note_info)
 
-            # Advance position for this clef
-            clef_positions[clef] += duration_beats
+            # Advance position for this clef in beats
+            clef_positions_beats[clef] += duration_beats
 
-    return notes_by_clef, measure_durations
+    return notes_by_clef, measure_durations_seconds
 
 
 def get_instrument_program(instrument_name):
@@ -673,7 +681,9 @@ def process_measure_with_clef_balancing(measure_notes, original_measure_idx, bea
             time_groups[start_key] = []
         time_groups[start_key].append(note)
 
-    # Group by duration within each time group (preserve chord accuracy)
+    # Group by duration within each time group (preserve chord accuracy).
+    # NOTE: We keep notes separate here; chord grouping happens later and
+    # must be done per-clef to avoid merging independent bass/treble notes.
     all_note_events = []
     for start_time in sorted(time_groups.keys()):
         time_group = time_groups[start_time]
@@ -685,7 +695,7 @@ def process_measure_with_clef_balancing(measure_notes, original_measure_idx, bea
                 duration_groups[duration_key] = []
             duration_groups[duration_key].append(note)
 
-        # Create note events (single notes or chords)
+        # Create note events (single notes at this start+duration)
         for duration_beats in sorted(duration_groups.keys()):
             duration_group = duration_groups[duration_beats]
             safe_duration = beats_to_duration_symbol_vexflow_safe(duration_beats, beats_per_clef_limit)
@@ -694,7 +704,7 @@ def process_measure_with_clef_balancing(measure_notes, original_measure_idx, bea
                 'start_time': start_time,
                 'duration_beats': duration_beats,
                 'safe_duration': safe_duration,
-                'notes': duration_group
+                'notes': duration_group,
             })
 
     # NOW: Distribute events across clefs and split measures if needed
@@ -749,108 +759,48 @@ def distribute_events_with_measure_splitting(note_events, original_measure_idx, 
             note_id_counter += 1
             
         else:
-            # Chord - decide whether to split or keep together
+            # Multiple simultaneous notes: group strictly per clef so we
+            # never merge independent bass and treble notes into one chord.
             notes.sort(key=lambda x: x['midi_note'])
-            
-            # Try to fit the whole chord in one clef
-            chord_clef = choose_chord_clef_with_load_balancing(
-                notes, current_clef_loads, beats_per_clef_limit
-            )
-            
-            if chord_clef and current_clef_loads[chord_clef] + duration_beats <= beats_per_clef_limit + 0.01:
-                # Whole chord fits in one clef
-                note_names = [n['note_name'] for n in notes]
-                chord_name = f"({' '.join(note_names)})" if len(note_names) > 1 else note_names[0]
-                
-                current_measure_data.append({
-                    'id': f'converted-{current_measure_idx}-{note_id_counter}',
-                    'name': chord_name,
-                    'clef': chord_clef,
-                    'duration': event['safe_duration'],
-                    'measure': current_measure_idx,
-                    'isRest': False
-                })
-                
-                current_clef_loads[chord_clef] += duration_beats
-                note_id_counter += 1
-                
-            else:
-                # Need to split the chord or start new measure
-                
-                # Check if we can split the chord across clefs
-                bass_notes = [n for n in notes if n['midi_note'] < 60]  # Below C4
-                treble_notes = [n for n in notes if n['midi_note'] >= 60]  # C4 and above
-                
-                can_split = (len(bass_notes) >= 1 and len(treble_notes) >= 1 and
-                           current_clef_loads['bass'] + duration_beats <= beats_per_clef_limit + 0.01 and
-                           current_clef_loads['treble'] + duration_beats <= beats_per_clef_limit + 0.01)
-                
-                if can_split:
-                    # Split chord across clefs
-                    print(f"  Splitting chord across clefs: {len(bass_notes)} bass, {len(treble_notes)} treble")
-                    
-                    # Bass part
-                    if bass_notes:
-                        bass_names = [n['note_name'] for n in bass_notes]
-                        bass_chord_name = f"({' '.join(bass_names)})" if len(bass_names) > 1 else bass_names[0]
-                        
-                        current_measure_data.append({
-                            'id': f'converted-{current_measure_idx}-{note_id_counter}',
-                            'name': bass_chord_name,
-                            'clef': 'bass',
-                            'duration': event['safe_duration'],
-                            'measure': current_measure_idx,
-                            'isRest': False
-                        })
-                        
-                        current_clef_loads['bass'] += duration_beats
-                        note_id_counter += 1
-                    
-                    # Treble part
-                    if treble_notes:
-                        treble_names = [n['note_name'] for n in treble_notes]
-                        treble_chord_name = f"({' '.join(treble_names)})" if len(treble_names) > 1 else treble_names[0]
-                        
-                        current_measure_data.append({
-                            'id': f'converted-{current_measure_idx}-{note_id_counter}',
-                            'name': treble_chord_name,
-                            'clef': 'treble',
-                            'duration': event['safe_duration'],
-                            'measure': current_measure_idx,
-                            'isRest': False
-                        })
-                        
-                        current_clef_loads['treble'] += duration_beats
-                        note_id_counter += 1
-                
-                else:
-                    # Start new measure for this chord
-                    if current_measure_data:  # Don't create empty measures
+
+            bass_notes = [n for n in notes if n['midi_note'] < 60]
+            treble_notes = [n for n in notes if n['midi_note'] >= 60]
+
+            # Helper to add a chord or single note for a specific clef
+            def add_clef_group(clef_name, clef_notes):
+                nonlocal current_measure_data, current_clef_loads, note_id_counter, current_measure_idx
+
+                if not clef_notes:
+                    return
+
+                # If this group would overflow the clef, start a new measure
+                if current_clef_loads[clef_name] + duration_beats > beats_per_clef_limit + 0.01:
+                    if current_measure_data:
                         result_measures.append(current_measure_data)
                         current_measure_data = []
                         current_clef_loads = {'treble': 0.0, 'bass': 0.0}
                         current_measure_idx = len(result_measures) + original_measure_idx
                         note_id_counter = 1
-                    
-                    # Add the whole chord to the new measure
-                    default_clef = choose_chord_clef_with_load_balancing(
-                        notes, current_clef_loads, beats_per_clef_limit
-                    ) or 'treble'
-                    
-                    note_names = [n['note_name'] for n in notes]
-                    chord_name = f"({' '.join(note_names)})" if len(note_names) > 1 else note_names[0]
-                    
-                    current_measure_data.append({
-                        'id': f'converted-{current_measure_idx}-{note_id_counter}',
-                        'name': chord_name,
-                        'clef': default_clef,
-                        'duration': event['safe_duration'],
-                        'measure': current_measure_idx,
-                        'isRest': False
-                    })
-                    
-                    current_clef_loads[default_clef] += duration_beats
-                    note_id_counter += 1
+
+                names = [n['note_name'] for n in clef_notes]
+                chord_name = f"({' '.join(names)})" if len(names) > 1 else names[0]
+
+                current_measure_data.append({
+                    'id': f'converted-{current_measure_idx}-{note_id_counter}',
+                    'name': chord_name,
+                    'clef': clef_name,
+                    'duration': event['safe_duration'],
+                    'measure': current_measure_idx,
+                    'isRest': False
+                })
+
+                current_clef_loads[clef_name] += duration_beats
+                note_id_counter += 1
+
+                # Add bass-only and treble-only groups separately.
+                # This prevents cross-clef chords like (D3 B4) in a single clef.
+                add_clef_group('bass', bass_notes)
+                add_clef_group('treble', treble_notes)
 
     # Add the final measure
     if current_measure_data:

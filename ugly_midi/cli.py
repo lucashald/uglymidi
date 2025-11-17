@@ -12,8 +12,7 @@ import sys
 from pathlib import Path
 
 # Import the converter functions
-from .converter import (create_midi_from_multiple_json, create_json_from_midi,
-                        create_json_from_midi_file)
+from .converter import (create_midi_from_multiple_json, create_json_from_midi)
 
 
 def main():

@@ -26,7 +26,7 @@ __license__ = "MIT"
 
 # Import main functions for easy access
 from .converter import (
-    # Core conversion functions
+    # Core conversion functions (v1)
     create_midi_from_json,
     create_midi_from_multiple_json,
     create_json_from_midi,
@@ -45,6 +45,12 @@ from .converter import (
 
     # Constants
     DURATION_TO_BEATS,
+)
+
+# v2: simplified, beat-based converter (opt-in)
+from .converter_v2 import (  # type: ignore[F401]
+    create_midi_from_json_v2,
+    midi_to_json_v2,
 )
 
 

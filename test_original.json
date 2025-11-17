@@ -1,0 +1,90 @@
+{
+  "keySignature": "C",
+  "tempo": 120,
+  "timeSignature": {
+    "numerator": 4,
+    "denominator": 4
+  },
+  "instrument": "piano",
+  "midiChannel": "0",
+  "measures": [
+    [
+      {
+        "id": "test-1-1",
+        "name": "C4",
+        "clef": "treble",
+        "duration": "q",
+        "measure": 0,
+        "isRest": false
+      },
+      {
+        "id": "test-1-2",
+        "name": "D4",
+        "clef": "treble",
+        "duration": "q",
+        "measure": 0,
+        "isRest": false
+      },
+      {
+        "id": "test-1-3",
+        "name": "E4",
+        "clef": "treble",
+        "duration": "q",
+        "measure": 0,
+        "isRest": false
+      },
+      {
+        "id": "test-1-4",
+        "name": "F4",
+        "clef": "treble",
+        "duration": "q",
+        "measure": 0,
+        "isRest": false
+      }
+    ],
+    [
+      {
+        "id": "test-2-1",
+        "name": "(C4 E4 G4)",
+        "clef": "treble",
+        "duration": "h",
+        "measure": 1,
+        "isRest": false
+      },
+      {
+        "id": "test-2-2",
+        "name": "",
+        "clef": "treble",
+        "duration": "h",
+        "measure": 1,
+        "isRest": true
+      }
+    ],
+    [
+      {
+        "id": "test-3-1",
+        "name": "C3",
+        "clef": "bass",
+        "duration": "q",
+        "measure": 2,
+        "isRest": false
+      },
+      {
+        "id": "test-3-2",
+        "name": "G3",
+        "clef": "bass",
+        "duration": "q",
+        "measure": 2,
+        "isRest": false
+      },
+      {
+        "id": "test-3-3",
+        "name": "C4",
+        "clef": "treble",
+        "duration": "h",
+        "measure": 2,
+        "isRest": false
+      }
+    ]
+  ]
+}
