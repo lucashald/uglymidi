@@ -1,0 +1,81 @@
+{
+  "keySignature": "C",
+  "tempo": 120,
+  "timeSignature": {
+    "numerator": 4,
+    "denominator": 4
+  },
+  "instrument": "piano",
+  "midiChannel": "0",
+  "measures": [
+    [
+      {
+        "id": "grp0-0-bass",
+        "clef": "bass",
+        "duration": "h",
+        "measure": 0,
+        "isRest": false,
+        "name": "A2",
+        "velocity": 80,
+        "chordName": "A2"
+      },
+      {
+        "id": "grp0-0-treble",
+        "clef": "treble",
+        "duration": "h",
+        "measure": 0,
+        "isRest": false,
+        "name": "F5",
+        "velocity": 80,
+        "chordName": "F5"
+      },
+      {
+        "id": "grp2-0-bass",
+        "clef": "bass",
+        "duration": "h",
+        "measure": 0,
+        "isRest": false,
+        "name": "F3",
+        "velocity": 80,
+        "chordName": "F3"
+      },
+      {
+        "id": "grp1-0-treble",
+        "clef": "treble",
+        "duration": "q",
+        "measure": 0,
+        "isRest": false,
+        "name": "D5",
+        "velocity": 80,
+        "chordName": "D5"
+      },
+      {
+        "id": "m0-treble-4",
+        "clef": "treble",
+        "duration": "q",
+        "measure": 0,
+        "isRest": true,
+        "name": "B4"
+      }
+    ]
+  ],
+  "measureTimings": [
+    {
+      "index": 0,
+      "startBeats": 0.0,
+      "endBeats": 4.0,
+      "startSeconds": 0.0,
+      "endSeconds": 2.0,
+      "timeSignature": {
+        "numerator": 4,
+        "denominator": 4
+      }
+    }
+  ],
+  "tempoMap": [
+    {
+      "time": 0.0,
+      "bpm": 120.0
+    }
+  ]
+}

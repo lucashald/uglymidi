@@ -1,10 +1,30 @@
 #!/usr/bin/env python3
 """
-VexFlow JSON to MIDI Converter
+⚠️  DEPRECATED: Standalone VexFlow JSON to MIDI Converter (Legacy)
 
-Converts VexFlow-style JSON music notation to MIDI files using pretty_midi.
+This file is kept for BACKWARDS COMPATIBILITY ONLY.
+All new code should use the 'ugly_midi' package instead:
 
-Usage:
+    pip install -e .
+    python -m ugly_midi input.json output.mid
+
+Or import from the package:
+
+    import ugly_midi
+    midi = ugly_midi.json_to_midi(json_data)
+    ugly_midi.save_midi(midi, 'output.mid')
+
+This standalone script contains duplicated logic and does NOT include:
+- v3 MIDI→JSON converter with clef balancing and measure awareness
+- Proper beat quantization (v3 is much more accurate)
+- Advanced feature support (ties, improved grouping, etc.)
+
+For round-trip accuracy (JSON→MIDI→JSON), always use the package with:
+    json_data = ugly_midi.midi_to_json('input.mid', manual_tempo=YOUR_TEMPO)
+
+---
+
+Legacy usage (NOT RECOMMENDED):
     python ugly_midi.py input.json output.mid
 """
 

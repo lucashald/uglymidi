@@ -1,0 +1,108 @@
+{
+  "keySignature": "C",
+  "tempo": 120,
+  "timeSignature": {
+    "numerator": 4,
+    "denominator": 4
+  },
+  "instrument": "piano",
+  "midiChannel": "0",
+  "measures": [
+    [
+      {
+        "name": "F5",
+        "clef": "treble",
+        "duration": "h",
+        "isRest": false,
+        "measure": 0,
+        "id": "1763500133674",
+        "performedDuration": 0.854,
+        "velocity": 101
+      },
+      {
+        "name": "C5",
+        "clef": "treble",
+        "duration": "q",
+        "isRest": true,
+        "measure": 0,
+        "id": "1763500140560",
+        "performedDuration": 0.856,
+        "velocity": 98,
+        "chordName": "Rest"
+      },
+      {
+        "name": "D5",
+        "clef": "treble",
+        "duration": "q",
+        "isRest": false,
+        "measure": 0,
+        "id": "1763500135506",
+        "performedDuration": 0.846,
+        "velocity": 102
+      },
+      {
+        "name": "A2",
+        "clef": "bass",
+        "duration": "h",
+        "isRest": false,
+        "measure": 0,
+        "id": "1763500146239",
+        "performedDuration": 0.841,
+        "velocity": 101
+      },
+      {
+        "name": "F3",
+        "clef": "bass",
+        "duration": "h",
+        "isRest": false,
+        "measure": 0,
+        "id": "1763500147767",
+        "performedDuration": 1,
+        "velocity": 104,
+        "tie": {
+          "type": "tie",
+          "startNoteId": "1763500147767",
+          "endNoteId": "1763501860781"
+        }
+      }
+    ],
+    [
+      {
+        "name": "F3",
+        "clef": "bass",
+        "duration": "h",
+        "isRest": false,
+        "measure": 0,
+        "id": "1763501860781",
+        "performedDuration": 0.841,
+        "velocity": 95,
+        "chordName": "F3",
+        "tie": {
+          "type": "tie",
+          "startNoteId": "1763500147767",
+          "endNoteId": "1763501860781"
+        }
+      },
+      {
+        "name": "D5",
+        "clef": "treble",
+        "duration": "w",
+        "isRest": false,
+        "measure": 1,
+        "id": "1763501862349",
+        "performedDuration": 0.844,
+        "velocity": 99
+      },
+      {
+        "name": "D3",
+        "clef": "bass",
+        "duration": "h",
+        "isRest": false,
+        "measure": 1,
+        "id": "1763501874709",
+        "performedDuration": 0.848,
+        "velocity": 98
+      }
+    ]
+  ]
+}

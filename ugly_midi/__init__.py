@@ -47,11 +47,17 @@ from .converter import (
     DURATION_TO_BEATS,
 )
 
-# v2: simplified, beat-based converter (opt-in)
-from .converter_v2 import (  # type: ignore[F401]
-    create_midi_from_json_v2,
-    midi_to_json_v2,
+# v3: measure-aware, clef-balanced converter (default)
+from .converter_v3 import (  # type: ignore[F401]
+    midi_to_json_v3,
 )
+
+# v2: simplified, beat-based converter (opt-in)
+# Temporarily disabled - converter_v2.py does not exist
+# from .converter_v2 import (  # type: ignore[F401]
+#     create_midi_from_json_v2,
+#     midi_to_json_v2,
+# )
 
 
 # Convenient aliases for common operations
@@ -91,7 +97,8 @@ def midi_to_json(midi_file_path, quantize_resolution=0.25, manual_tempo=142):
         >>> json_data = ugly_midi.midi_to_json('input.mid', manual_tempo=142)
         >>> print(json_data['tempo'])
     """
-    return create_json_from_midi(midi_file_path, quantize_resolution, manual_tempo)
+    # Use the v3 converter by default; keep the old parameter order and defaults
+    return midi_to_json_v3(midi_file_path, manual_tempo=manual_tempo, quantize_resolution=quantize_resolution)
 
 
 def create_ensemble(json_data_list, output_tempo=None):

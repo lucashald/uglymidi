@@ -13,7 +13,7 @@ for correctness and predictability, not layout optimization.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Sequence, Tuple, Optional
+from typing import Dict, List, Sequence, Tuple, Optional, Set
 
 import pretty_midi
 
@@ -101,6 +101,39 @@ def determine_clef_from_pitch(pitch: int) -> str:
     return "treble" if pitch >= 60 else "bass"
 
 
+def _accumulate_tied_duration(note: Dict, note_lookup: Dict[str, Dict], skip_ids: Set[str]) -> float:
+    """Sum durations for tied notes starting at ``note`` and mark followers to skip.
+
+    Returns the extra beats contributed by tied followers. Only activates when this
+    note's ``id`` matches the tie's ``startNoteId``. Followers are recorded in
+    ``skip_ids`` so they do not emit duplicate MIDI notes later.
+    """
+    tie = note.get("tie")
+    note_id = note.get("id")
+    if not tie or not note_id or note_id != tie.get("startNoteId"):
+        return 0.0
+
+    extra_beats = 0.0
+    next_id = tie.get("endNoteId")
+    visited: Set[str] = set()
+
+    while next_id and next_id not in visited:
+        visited.add(next_id)
+        follower = note_lookup.get(next_id)
+        if not follower:
+            break
+        duration_symbol = follower.get("duration", "q")
+        extra_beats += DURATION_TO_BEATS.get(duration_symbol, 1.0)
+        skip_ids.add(next_id)
+
+        follower_tie = follower.get("tie")
+        if not follower_tie or next_id != follower_tie.get("startNoteId"):
+            break
+        next_id = follower_tie.get("endNoteId")
+
+    return extra_beats
+
+
 # ---------------------------------------------------------------------------
 # JSON -> MIDI (v2)
 # ---------------------------------------------------------------------------
@@ -127,6 +160,15 @@ def create_midi_from_json_v2(json_data: Dict, tempo_override: Optional[int] = No
 
     measures = json_data.get("measures", [])
 
+    note_lookup: Dict[str, Dict] = {}
+    for measure in measures:
+        for note in measure:
+            note_id = note.get("id")
+            if note_id:
+                note_lookup[note_id] = note
+
+    skip_note_ids: Set[str] = set()
+
     for m_idx, measure in enumerate(measures):
         # Track beat offset per clef within this measure
         clef_positions: Dict[str, float] = {"treble": 0.0, "bass": 0.0}
@@ -141,11 +183,19 @@ def create_midi_from_json_v2(json_data: Dict, tempo_override: Optional[int] = No
                 clef_positions[clef] += duration_beats
                 continue
 
+            note_id = note.get("id")
+            if note_id and note_id in skip_note_ids:
+                clef_positions[clef] += duration_beats
+                continue
+
+            extra_tied_beats = _accumulate_tied_duration(note, note_lookup, skip_note_ids)
+            effective_beats = duration_beats + extra_tied_beats
+
             beat_start = m_idx * beats_per_measure + clef_positions[clef]
             clef_positions[clef] += duration_beats
 
             start_s = beats_to_seconds(beat_start, tempo)
-            end_s = beats_to_seconds(beat_start + duration_beats, tempo)
+            end_s = beats_to_seconds(beat_start + effective_beats, tempo)
 
             pitches = parse_note_name(note.get("name", ""))
             for pitch in pitches:
